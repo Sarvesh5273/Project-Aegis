@@ -7,13 +7,20 @@ from backend.utils.llama_runner import run_edge_inference
 # ---------------------------------------------------------
 # LAYER 1 INIT: Multilingual Deterministic Baseline
 # ---------------------------------------------------------
+# This module relies on the 'xx_ent_wiki_sm' spaCy model for offline 
+# Named Entity Recognition (NER). 
+# 
+# CRITICAL ARCHITECTURE NOTE (AIR-GAP COMPLIANCE):
+# We do NOT attempt to download the model here at runtime. Attempting 
+# a download during execution violates the zero-trust air-gap constraint 
+# and will cause a hang/crash if the network is physically disconnected.
+# The model MUST be pre-cached by executing 'setup.sh' prior to deployment.
 try:
     nlp = spacy.load("xx_ent_wiki_sm")
-except OSError:
-    import subprocess
-    print("Downloading multilingual spaCy model...")
-    subprocess.run(["python", "-m", "spacy", "download", "xx_ent_wiki_sm"])
-    nlp = spacy.load("xx_ent_wiki_sm")
+except OSError as e:
+    logging.error("CRITICAL: Multilingual spaCy model not found in local cache.")
+    logging.error("RESOLUTION: Execute './setup.sh' while connected to a network to pre-cache dependencies before air-gapped deployment.")
+    raise RuntimeError("Missing offline dependency: xx_ent_wiki_sm. Setup incomplete.") from e
 
 # ---------------------------------------------------------
 # LAYER 2 INIT: Generative JSON Extraction (Edge)
