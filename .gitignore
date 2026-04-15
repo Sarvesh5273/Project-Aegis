@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Python Environments
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Security
+.env
+.streamlit/secrets.toml
+
+# Hardware Assets & Submodules (CRITICAL)
+llama.cpp/
+*.gguf
+*.bin
+*.pcap
+*.pcapng
