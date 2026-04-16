@@ -24,9 +24,10 @@ def safe_replace(text: str, original: str, token: str) -> str:
 
 def sanitize_pipeline(raw_text: str) -> dict:
     redaction_map = {}
-    
-    # LAYER 3: Delegate to nlp_helpers.py
-    text = apply_regex_fallbacks(raw_text)
+
+    # LAYER 3: Regex fallbacks — runs first, returns map for highlighting
+    text, regex_map = apply_regex_fallbacks(raw_text)
+    redaction_map.update(regex_map)
 
     # LAYER 1: spaCy NER
     doc = nlp(text)
@@ -38,9 +39,8 @@ def sanitize_pipeline(raw_text: str) -> dict:
 
     # LAYER 2: Dual-Path Inference
     device = os.environ.get("AEGIS_DEVICE", "mac").lower()
-    
+
     if device == "mac":
-        # NATIVE FUNCTION CALLING (Unlocks $10K Ollama Track)
         extraction_tool = {
             'type': 'function',
             'function': {
@@ -67,31 +67,30 @@ def sanitize_pipeline(raw_text: str) -> dict:
 
         try:
             response = ollama.chat(
-                model="gemma4:26b",
+                model=os.environ.get("AEGIS_MODEL", "gemma4:26b"),
                 messages=[{"role": "user", "content": f"Extract entities from this text: {text}"}],
                 tools=[extraction_tool]
             )
-            
-            # Parse the native tool call array
+
             if response.get('message', {}).get('tool_calls'):
                 tool_call = response['message']['tool_calls'][0]
                 entities = tool_call['function']['arguments'].get('entities', [])
-                
+
                 for entity in entities:
                     orig, tok = entity.get("original"), entity.get("token")
                     if orig and tok and len(orig) > 1 and "REDACTED" not in orig:
                         redaction_map[orig] = tok
                         text = safe_replace(text, orig, tok)
-                        
+
                 return {"status": "success", "redaction_map": redaction_map, "sanitized_text": text}
             else:
                 raise ValueError("Model failed to invoke the extraction tool.")
-                
+
         except Exception as e:
             logging.warning(f"Native function call failed: {e}. Falling back to C++ engine.")
             raw_json_output = run_edge_inference(EDGE_SANITIZER_PROMPT, text, max_tokens="400")
     else:
-        # Raspberry Pi Edge Fallback
+        # Raspberry Pi path
         raw_json_output = run_edge_inference(EDGE_SANITIZER_PROMPT, text, max_tokens="400")
 
     # C++ Fallback JSON Parsing

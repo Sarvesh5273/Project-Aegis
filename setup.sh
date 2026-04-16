@@ -10,7 +10,7 @@ set -e
 echo "🛡️ Initiating Project Aegis Hardware Setup..."
 
 echo "📦 1/4: Installing Python dependencies..."
-pip install -r requirements.txt
+./venv/bin/pip install -r requirements.txt
 
 echo "🧠 2/4: Pre-caching spaCy multilingual model for offline use..."
 # CRITICAL PRE-CACHE: Prevents application crash during air-gapped deployment
