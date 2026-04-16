@@ -8,14 +8,12 @@ st.caption("Air-Gapped Document Intelligence | Offline Mode: ACTIVE")
 
 raw_text = st.text_area("Secure Input", height=200, placeholder="Paste intercepted document here...")
 
-
 if st.button("Process Intelligence Report", type="primary"):
     if not raw_text.strip():
         st.warning("Input required.")
     else:
         with st.spinner("Enforcing air-gap... sanitizing and synthesizing locally..."):
             try:
-                # Request BOTH tasks from the backend
                 response = requests.post(
                     "http://127.0.0.1:8000/api/v1/process",
                     json={"raw_text": raw_text, "task": "both"}
@@ -25,16 +23,26 @@ if st.button("Process Intelligence Report", type="primary"):
                     
                     st.success("Report Processed Securely.")
                     
-                    # Display the Synthesized Intelligence Brief
+                    # 1. Synthesized Intelligence Brief
                     st.subheader("Tactical Summary")
                     st.info(data.get("synthesis_result", ""))
 
-                    # Display the sanitized text
+                    # 2. Real-Time Redaction Visualizer (UI Polish)
                     st.subheader("Sanitized Source")
-                    st.write(data.get("sanitized_text", ""))
+                    sanitized_text = data.get("sanitized_text", "")
+                    redaction_map = data.get("redaction_map", {})
+                    
+                    visual_text = sanitized_text
+                    # Inject HTML spans to highlight redactions dynamically
+                    for original, token in redaction_map.items():
+                        visual_text = visual_text.replace(
+                            token, 
+                            f'<span style="background-color:#ff4444;color:white;padding:2px 4px;border-radius:3px;font-weight:bold;">{token}</span>'
+                        )
+                    st.markdown(visual_text, unsafe_allow_html=True)
                     
                     with st.expander("View Redaction Map"):
-                        st.json(data.get("redaction_map", {}))
+                        st.json(redaction_map)
                 else:
                     st.error(f"Backend Error: {response.status_code}")
             except requests.exceptions.ConnectionError:
